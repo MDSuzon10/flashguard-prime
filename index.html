@@ -19,7 +19,7 @@
 <body>
     <div class="panel">
         <h2>FLASH GUARD PRO</h2>
-        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.1)</p>
+        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.2)</p>
         
         <div id="light-status" class="status-light"></div>
         <p id="light-text" style="font-size: 14px;">পুলিশ লাইট: বন্ধ</p>
@@ -58,15 +58,14 @@
             input.value = "";
             chat.scrollTop = chat.scrollHeight;
 
-            // জেমিনি এআই-কে নির্দেশ পাঠানো
             const prompt = `You are a smart security assistant. 
             If user wants to turn on light, reply ONLY: {"action":"on"}. 
             If off, reply ONLY: {"action":"off"}. 
             Otherwise reply in Bengali. User command: ${cmd}`;
             
             try {
-                // এন্ডপয়েন্ট v1beta তে ফিরিয়ে আনা হয়েছে যা gemini-1.5-flash এর জন্য সঠিক
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                // এখানে মডেলের নাম 'gemini-pro' ব্যবহার করা হয়েছে যা সবচেয়ে স্টেবল
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -77,29 +76,58 @@
                 const data = await response.json();
 
                 if (data.error) {
-                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> ${data.error.message}</div>`;
-                    return;
+                    // যদি gemini-pro ও কাজ না করে, তবে gemini-1.5-flash-latest ট্রাই করবে
+                    console.log("Retrying with fallback model...");
+                    return retryWithFlash(cmd);
                 }
 
                 const aiRes = data.candidates[0].content.parts[0].text;
+                processAIResponse(aiRes);
 
-                // এআই-এর উত্তর অনুযায়ী ফায়ারবেস আপডেট
-                if(aiRes.includes('"action":"on"')) {
-                    db.ref('system/police_light').set(1);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
-                } else if(aiRes.includes('"action":"off"')) {
-                    db.ref('system/police_light').set(0);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
-                } else {
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
-                }
             } catch (e) {
-                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে।</div>`;
+                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> সংযোগে সমস্যা হচ্ছে।</div>`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
 
-        // ডাটাবেস থেকে লাইভ আপডেট নিয়ে বাতি জ্বালানো
+        // ফলব্যাক ফাংশন (যদি প্রথম মডেল ফেল করে)
+        async function retryWithFlash(cmd) {
+            const chat = document.getElementById('chat');
+            const prompt = `You are a smart security assistant. If user wants to turn on light, reply ONLY: {"action":"on"}. If off, reply ONLY: {"action":"off"}. Otherwise reply in Bengali. User command: ${cmd}`;
+            
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({"contents": [{"parts": [{"text": prompt}]}]})
+                });
+                const data = await response.json();
+                if(data.error) {
+                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> ${data.error.message}</div>`;
+                } else {
+                    const aiRes = data.candidates[0].content.parts[0].text;
+                    processAIResponse(aiRes);
+                }
+            } catch (e) {
+                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে।</div>`;
+            }
+        }
+
+        function processAIResponse(aiRes) {
+            const chat = document.getElementById('chat');
+            if(aiRes.includes('"action":"on"')) {
+                db.ref('system/police_light').set(1);
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
+            } else if(aiRes.includes('"action":"off"')) {
+                db.ref('system/police_light').set(0);
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
+            } else {
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // ডাটাবেস থেকে লাইভ আপডেট
         db.ref('system/police_light').on('value', (snapshot) => {
             const val = snapshot.val();
             const light = document.getElementById('light-status');
