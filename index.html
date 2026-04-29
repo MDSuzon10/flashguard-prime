@@ -9,17 +9,17 @@
     <style>
         body { background-color: #0a0f1e; color: #00f3ff; font-family: 'Segoe UI', sans-serif; text-align: center; padding: 20px; }
         .panel { border: 2px solid #1a2639; padding: 20px; border-radius: 15px; background: #111827; box-shadow: 0 0 20px rgba(0,243,255,0.1); max-width: 400px; margin: auto; }
-        .chat-box { background: #0a0f1e; border: 1px solid #1a2639; height: 200px; overflow-y: auto; padding: 10px; margin-top: 20px; text-align: left; border-radius: 10px; font-size: 14px; line-height: 1.5; }
-        input { width: 70%; padding: 12px; margin-top: 10px; border-radius: 5px; border: 1px solid #00f3ff; background: #111827; color: white; outline: none; }
-        .send-btn { padding: 12px 20px; background: #00f3ff; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; color: black; }
-        .status-light { width: 20px; height: 20px; border-radius: 50%; display: inline-block; margin-top: 10px; border: 2px solid #334155; transition: 0.3s; }
+        .chat-box { background: #0a0f1e; border: 1px solid #1a2639; height: 180px; overflow-y: auto; padding: 10px; margin-top: 20px; text-align: left; border-radius: 10px; font-size: 14px; }
+        input { width: 65%; padding: 12px; margin-top: 10px; border-radius: 5px; border: 1px solid #00f3ff; background: #111827; color: white; outline: none; }
+        .send-btn { padding: 12px 15px; background: #00f3ff; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; color: black; }
+        .status-light { width: 20px; height: 20px; border-radius: 50%; display: inline-block; margin-top: 10px; border: 2px solid #334155; }
         .on { background: #ff003c; box-shadow: 0 0 15px #ff003c; border-color: #ff003c; }
     </style>
 </head>
 <body>
     <div class="panel">
         <h2>FLASH GUARD PRO</h2>
-        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.6 - Stable)</p>
+        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.7)</p>
         
         <div id="light-status" class="status-light"></div>
         <p id="light-text" style="font-size: 14px;">পুলিশ লাইট: বন্ধ</p>
@@ -63,40 +63,48 @@
             If off, reply ONLY: {"action":"off"}. 
             Otherwise reply in Bengali. User command: ${cmd}`;
             
-            try {
-                // এন্ডপয়েন্ট v1 এ পরিবর্তন করা হয়েছে যা বর্তমানে সবচেয়ে স্টেবল
-                const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-                
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        "contents": [{"parts": [{"text": prompt}]}]
-                    })
-                });
-                
-                const data = await response.json();
+            // মডেলের নামগুলো এখানে লিস্ট করা আছে
+            const models = ["gemini-1.5-flash", "gemini-pro"];
+            let success = false;
 
-                if (data.error) {
-                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> ${data.error.message}</div>`;
-                    return;
-                }
+            for (let modelName of models) {
+                if (success) break;
+                try {
+                    // v1beta এন্ডপয়েন্ট ব্যবহার করে ট্রাই করা হচ্ছে
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ "contents": [{"parts": [{"text": prompt}]}] })
+                    });
+                    
+                    const data = await response.json();
 
-                const aiRes = data.candidates[0].content.parts[0].text;
+                    if (data.candidates && data.candidates[0]) {
+                        const aiRes = data.candidates[0].content.parts[0].text;
+                        handleResponse(aiRes);
+                        success = true;
+                    }
+                } catch (e) { console.log(modelName + " failed."); }
+            }
 
-                if(aiRes.includes('"action":"on"')) {
-                    db.ref('system/police_light').set(1);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
-                } else if(aiRes.includes('"action":"off"')) {
-                    db.ref('system/police_light').set(0);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
-                } else {
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
-                }
-            } catch (e) {
-                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে।</div>`;
+            if (!success) {
+                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে। আপনার API Key টি চেক করুন।</div>`;
             }
             chat.scrollTop = chat.scrollHeight;
+        }
+
+        function handleResponse(aiRes) {
+            const chat = document.getElementById('chat');
+            if(aiRes.includes('"action":"on"')) {
+                db.ref('system/police_light').set(1);
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
+            } else if(aiRes.includes('"action":"off"')) {
+                db.ref('system/police_light').set(0);
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
+            } else {
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
+            }
         }
 
         // ডাটাবেস থেকে লাইভ আপডেট
