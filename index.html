@@ -19,7 +19,7 @@
 <body>
     <div class="panel">
         <h2>FLASH GUARD PRO</h2>
-        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.5 - Debug)</p>
+        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.6 - Stable)</p>
         
         <div id="light-status" class="status-light"></div>
         <p id="light-text" style="font-size: 14px;">পুলিশ লাইট: বন্ধ</p>
@@ -64,8 +64,8 @@
             Otherwise reply in Bengali. User command: ${cmd}`;
             
             try {
-                // সরাসরি v1beta এন্ডপয়েন্ট ব্যবহার
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+                // এন্ডপয়েন্ট v1 এ পরিবর্তন করা হয়েছে যা বর্তমানে সবচেয়ে স্টেবল
+                const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
                 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -77,9 +77,8 @@
                 
                 const data = await response.json();
 
-                // যদি গুগল থেকে কোনো এরর আসে, তা সরাসরি চ্যাটে দেখাবে
                 if (data.error) {
-                    chat.innerHTML += `<div style="color: #ff003c;"><b>Google Error:</b> ${data.error.message} (Code: ${data.error.code})</div>`;
+                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> ${data.error.message}</div>`;
                     return;
                 }
 
@@ -95,8 +94,7 @@
                     chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
                 }
             } catch (e) {
-                // নেটওয়ার্ক বা অন্য কোনো টেকনিক্যাল এরর দেখালে
-                chat.innerHTML += `<div style="color: #ff003c;"><b>System Error:</b> ${e.message}</div>`;
+                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে।</div>`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
