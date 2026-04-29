@@ -19,7 +19,7 @@
 <body>
     <div class="panel">
         <h2>FLASH GUARD PRO</h2>
-        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.3)</p>
+        <p style="color: #64748b; font-size: 12px;">এআই কমান্ড সেন্টার (v1.4)</p>
         
         <div id="light-status" class="status-light"></div>
         <p id="light-text" style="font-size: 14px;">পুলিশ লাইট: বন্ধ</p>
@@ -58,50 +58,63 @@
             input.value = "";
             chat.scrollTop = chat.scrollHeight;
 
-            // জেমিনি এআই-কে নির্দেশ পাঠানো
             const prompt = `You are a smart security assistant. 
             If user wants to turn on light, reply ONLY: {"action":"on"}. 
             If off, reply ONLY: {"action":"off"}. 
             Otherwise reply in Bengali. User command: ${cmd}`;
             
-            try {
-                // মডেলের নাম পরিবর্তন করে 'gemini-1.5-flash' করা হয়েছে
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            // আমরা প্রথমে gemini-1.5-flash ট্রাই করব, কাজ না করলে gemini-pro ট্রাই করব
+            const models = ["gemini-1.5-flash", "gemini-pro"];
+            let success = false;
+
+            for (let model of models) {
+                if (success) break;
                 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        "contents": [{"parts": [{"text": prompt}]}]
-                    })
-                });
-                
-                const data = await response.json();
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            "contents": [{"parts": [{"text": prompt}]}]
+                        })
+                    });
+                    
+                    const data = await response.json();
 
-                if (data.error) {
-                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> ${data.error.message}</div>`;
-                    return;
+                    if (!data.error) {
+                        const aiRes = data.candidates[0].content.parts[0].text;
+                        processAIResponse(aiRes);
+                        success = true;
+                    } else {
+                        console.log(`Model ${model} failed, trying next...`);
+                    }
+                } catch (e) {
+                    console.error("Fetch error:", e);
                 }
+            }
 
-                const aiRes = data.candidates[0].content.parts[0].text;
-
-                // এআই-এর উত্তর অনুযায়ী ফায়ারবেস আপডেট
-                if(aiRes.includes('"action":"on"')) {
-                    db.ref('system/police_light').set(1);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
-                } else if(aiRes.includes('"action":"off"')) {
-                    db.ref('system/police_light').set(0);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
-                } else {
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
-                }
-            } catch (e) {
-                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে।</div>`;
+            if (!success) {
+                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে। আপনার API Key টি চেক করুন।</div>`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
 
-        // ডাটাবেস থেকে লাইভ আপডেট নিয়ে বাতি জ্বালানো
+        function processAIResponse(aiRes) {
+            const chat = document.getElementById('chat');
+            if(aiRes.includes('"action":"on"')) {
+                db.ref('system/police_light').set(1);
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
+            } else if(aiRes.includes('"action":"off"')) {
+                db.ref('system/police_light').set(0);
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
+            } else {
+                chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
+            }
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // ডাটাবেস থেকে লাইভ আপডেট
         db.ref('system/police_light').on('value', (snapshot) => {
             const val = snapshot.val();
             const light = document.getElementById('light-status');
