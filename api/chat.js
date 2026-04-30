@@ -1,11 +1,15 @@
 export default async function handler(req, res) {
-    // শুধু POST রিকোয়েস্ট গ্রহণ করবে
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     const { prompt } = req.body;
-    const apiKey = process.env.GEMINI_API_KEY; // এটি ভার্সেল থেকে আসবে
+    const apiKey = process.env.GEMINI_API_KEY; 
+
+    if (!apiKey) {
+        return res.status(500).json({ error: "API Key is missing in Vercel settings" });
+    }
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     try {
@@ -18,8 +22,8 @@ export default async function handler(req, res) {
         });
 
         const data = await response.json();
-        res.status(200).json(data);
+        return res.status(200).json(data);
     } catch (error) {
-        res.status(500).json({ error: "AI Connection Failed" });
+        return res.status(500).json({ error: "AI Connection Failed", details: error.message });
     }
 }
