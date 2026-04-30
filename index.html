@@ -23,14 +23,13 @@
         <div id="light-status" class="status-light"></div>
         <p id="light-text" style="font-size: 14px;">পুলিশ লাইট: বন্ধ</p>
         <div class="chat-box" id="chat">
-            <div><span style="color: #00ff9f;">AI:</span> স্বাগতম! আমি এখন সুরক্ষিত। আমি আপনাকে কীভাবে সাহায্য করতে পারি?</div>
+            <div><span style="color: #00ff9f;">AI:</span> স্বাগতম! আমি এখন প্রস্তুত।</div>
         </div>
         <input type="text" id="user-input" placeholder="এখানে লিখুন...">
         <button class="send-btn" onclick="askAI()">Send</button>
     </div>
 
     <script>
-        // আপনার Firebase Config (আগেরটাই থাকবে)
         const firebaseConfig = {
             apiKey: "AIzaSyAeASlfFcjrtmp6vL8nc_BVvD_IedXXpP8",
             authDomain: "flashguardpro.firebaseapp.com",
@@ -56,7 +55,6 @@
             const prompt = `You are a smart security assistant. If user wants to turn on light, reply ONLY: {"action":"on"}. If off, reply ONLY: {"action":"off"}. Otherwise reply in Bengali. User command: ${cmd}`;
             
             try {
-                // এখন আমরা সরাসরি গুগলকে নয়, আমাদের নিজের এপিআই-কে কল করছি
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -64,19 +62,30 @@
                 });
                 
                 const data = await response.json();
-                const aiRes = data.candidates[0].content.parts[0].text;
 
-                if(aiRes.includes('"action":"on"')) {
-                    db.ref('system/police_light').set(1);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
-                } else if(aiRes.includes('"action":"off"')) {
-                    db.ref('system/police_light').set(0);
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
+                // যদি গুগল থেকে কোনো এরর আসে
+                if (data.error) {
+                    chat.innerHTML += `<div style="color: #ff003c;"><b>AI Error:</b> ${data.error.message}</div>`;
+                    return;
+                }
+
+                if (data.candidates && data.candidates[0]) {
+                    const aiRes = data.candidates[0].content.parts[0].text;
+                    
+                    if(aiRes.includes('"action":"on"')) {
+                        db.ref('system/police_light').set(1);
+                        chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> জি স্যার, লাইট জ্বালিয়ে দিয়েছি।</div>`;
+                    } else if(aiRes.includes('"action":"off"')) {
+                        db.ref('system/police_light').set(0);
+                        chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ঠিক আছে, লাইট বন্ধ করা হয়েছে।</div>`;
+                    } else {
+                        chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
+                    }
                 } else {
-                    chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
+                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই কোনো উত্তর দেয়নি।</div>`;
                 }
             } catch (e) {
-                chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই সংযোগে সমস্যা হচ্ছে।</div>`;
+                chat.innerHTML += `<div style="color: #ff003c;"><b>System Error:</b> সংযোগ বিচ্ছিন্ন হয়েছে।</div>`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
@@ -90,4 +99,4 @@
         });
     </script>
 </body>
-</html> 
+</html>
