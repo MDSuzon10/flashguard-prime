@@ -7,38 +7,32 @@ export default async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY; 
 
     if (!apiKey) {
-        return res.status(500).json({ error: "API Key missing in Vercel" });
+        return res.status(500).json({ error: "Vercel settings-এ API Key পাওয়া যায়নি।" });
     }
 
-    // আমরা দুটি সম্ভাব্য এন্ডপয়েন্টই ট্রাই করব যাতে কোনোভাবেই ফেল না করে
-    const endpoints = [
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-        `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`
-    ];
+    // গুগলের একদম লেটেস্ট এবং স্টেবল ইউআরএল
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    for (let url of endpoints) {
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    "contents": [{ "parts": [{ "text": prompt }] }]
-                })
-            });
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                "contents": [{
+                    "parts": [{ "text": prompt }]
+                }]
+            })
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            // যদি গুগল থেকে সফল উত্তর আসে
-            if (data.candidates && data.candidates[0]) {
-                return res.status(200).json(data);
-            }
-            
-            // যদি এই এন্ডপয়েন্টে মডেল না পাওয়া যায়, তবে পরেরটা ট্রাই করবে
-            console.log("Trying next endpoint...");
-        } catch (error) {
-            continue;
+        // যদি গুগল কোনো এরর পাঠায়, তবে সেই এররটিই ফেরত পাঠাবে
+        if (data.error) {
+            return res.status(200).json({ error: data.error.message });
         }
-    }
 
-    return res.status(500).json({ error: "গুগল এআই কোনো মডেল খুঁজে পাচ্ছে না। আপনার API Key টি নতুন করে তৈরি করে দেখুন।" });
+        return res.status(200).json(data);
+    } catch (error) {
+        return res.status(500).json({ error: "সার্ভার কানেকশন ফেইল হয়েছে।" });
+    }
 }
