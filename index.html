@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flash Guard Pro - Secure AI</title>
+    <title>Flash Guard Pro - Stable AI</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -19,11 +19,11 @@
 <body>
     <div class="panel">
         <h2>FLASH GUARD PRO</h2>
-        <p style="color: #64748b; font-size: 12px;">সিকিউর এআই কমান্ড সেন্টার</p>
+        <p style="color: #64748b; font-size: 12px;">স্টেবল এআই কমান্ড সেন্টার</p>
         <div id="light-status" class="status-light"></div>
         <p id="light-text" style="font-size: 14px;">পুলিশ লাইট: বন্ধ</p>
         <div class="chat-box" id="chat">
-            <div><span style="color: #00ff9f;">AI:</span> স্বাগতম! আমি এখন প্রস্তুত।</div>
+            <div><span style="color: #00ff9f;">AI:</span> স্বাগতম! আমি এখন স্টেবল ভার্সনে আছি।</div>
         </div>
         <input type="text" id="user-input" placeholder="এখানে লিখুন...">
         <button class="send-btn" onclick="askAI()">Send</button>
@@ -63,7 +63,6 @@
                 
                 const data = await response.json();
 
-                // যদি গুগল থেকে কোনো এরর আসে
                 if (data.error) {
                     chat.innerHTML += `<div style="color: #ff003c;"><b>AI Error:</b> ${data.error.message}</div>`;
                     return;
@@ -81,11 +80,9 @@
                     } else {
                         chat.innerHTML += `<div><span style="color: #00ff9f;">AI:</span> ${aiRes}</div>`;
                     }
-                } else {
-                    chat.innerHTML += `<div style="color: #ff003c;"><b>Error:</b> এআই কোনো উত্তর দেয়নি।</div>`;
                 }
             } catch (e) {
-                chat.innerHTML += `<div style="color: #ff003c;"><b>System Error:</b> সংযোগ বিচ্ছিন্ন হয়েছে।</div>`;
+                chat.innerHTML += `<div style="color: #ff003c;"><b>System Error:</b> সংযোগে সমস্যা হচ্ছে।</div>`;
             }
             chat.scrollTop = chat.scrollHeight;
         }
