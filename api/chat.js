@@ -10,7 +10,8 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: "API Key is missing in Vercel settings" });
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // এখানে v1beta এর বদলে v1 ব্যবহার করা হয়েছে যা আজীবন কাজ করবে
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     try {
         const response = await fetch(url, {
